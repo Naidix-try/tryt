@@ -419,9 +419,19 @@ const S={
   first:'', last:'', idx:0, helpers:6,
   answers:Array(TOTAL).fill(''),
   status:Array(TOTAL).fill('unsolved'),
-  startTime:0, examActive:false, ending:false, softWarned:false, busy:false
+  startTime:0, examActive:false, ending:false, softWarned:false, busy:false,
+  checkedOK:false
 };
 const FORMSPREE='https://formspree.io/f/mbdvdqpe';
+
+/* ================================================================
+   منع إعادة الاختبار + تسجيل النتائج عبر Google Sheets
+   ----------------------------------------------------------------
+   الصق هنا رابط تطبيق الويب (Web App URL) الذي ستحصل عليه من
+   Google Apps Script بعد اتّباع الخطوات في ملف الإعداد.
+   اتركه فارغا '' إذا لم ترغب بهذه الميزة (سيعمل الاختبار عاديا).
+   ================================================================ */
+const SHEET_API='https://script.google.com/macros/s/AKfycbxjZvq7DENxIl4WJBo5tpAzf0NxU8QbH-GJh34ZXHqvmsouYLNIE3LjUSqnyJRaSmtrrA/exec';
 
 /* =================================================================
    أدوات مساعدة
@@ -447,12 +457,52 @@ $('startBtn').addEventListener('click',async()=>{
     return;
   }
   S.first=f; S.last=l;
+  const btn=$('startBtn');
+
+  // الخطوة ١: التحقّق من أنّ الطالب لم يؤدِّ الاختبار سابقا (إن كانت الميزة مفعّلة)
+  if(SHEET_API && !S.checkedOK){
+    btn.disabled=true; btn.textContent='⏳ جارٍ التحقّق...';
+    const res=await jsonp(SHEET_API+'?action=check&name='+encodeURIComponent(f+' '+l), 9000);
+    btn.disabled=false;
+    if(res.ok && res.data && res.data.taken){
+      btn.textContent='🚫 لا يمكنك إعادة الاختبار';
+      alert('🛑 لقد أدّيتَ هذا الاختبار من قبل يا '+f+'!\n\nإذا كنت بحاجة لإعادته فعلا، فاطلب الإذن من الأستاذة.');
+      return;
+    }
+    // ننجح في التحقّق (أو تعذّر الاتصال) فنتابع، وننتظر نقرة جديدة لتفعيل ملء الشاشة
+    S.checkedOK=true;
+    btn.textContent='🚀 ادخل وضع ملء الشاشة وابدأ';
+    return;
+  }
+
+  // الخطوة ٢: هذه النقرة إيماءة مستخدم صالحة لطلب ملء الشاشة
   $('studentName').textContent=f+' '+l;
-  // طلب ملء الشاشة (من نقرة المستخدم)
   try{ await (document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen()); }catch(e){}
   S.examActive=true; S.startTime=Date.now();
   buildProgress(); renderHearts(); showScreen('examScreen'); renderQuestion();
 });
+
+/* استدعاء JSONP لقراءة ردّ Google Apps Script (يتجاوز قيود CORS) */
+function jsonp(url, timeoutMs){
+  return new Promise((resolve)=>{
+    const cb='cb_'+Math.random().toString(36).slice(2);
+    const s=document.createElement('script');
+    let done=false;
+    const cleanup=()=>{ if(s.parentNode)s.parentNode.removeChild(s); try{delete window[cb];}catch(e){window[cb]=undefined;} };
+    window[cb]=(data)=>{ if(done)return; done=true; cleanup(); resolve({ok:true,data}); };
+    s.onerror=()=>{ if(done)return; done=true; cleanup(); resolve({ok:false}); };
+    s.src=url+(url.includes('?')?'&':'?')+'callback='+cb;
+    document.body.appendChild(s);
+    setTimeout(()=>{ if(done)return; done=true; cleanup(); resolve({ok:false,timeout:true}); }, timeoutMs||9000);
+  });
+}
+
+/* تسجيل سطر في ورقة جوجل عبر GET/JSONP (الأكثر موثوقية مع Apps Script) */
+function recordToSheet(payload){
+  if(!SHEET_API)return;
+  const qs=Object.keys(payload).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(payload[k]==null?'':payload[k])).join('&');
+  jsonp(SHEET_API+'?'+qs, 9000); // إرسال دون انتظار الردّ
+}
 
 /* =================================================================
    شريط التقدّم والمساعدات
@@ -743,6 +793,15 @@ async function finishExam(){
     $('sentNote').textContent = ok?'✅ تم إرسال نتيجتك إلى الأستاذة بنجاح!':'⚠️ تعذّر إرسال النتيجة (تحقّق من الإنترنت). أبلغ الأستاذة بنتيجتك.';
     $('sentNote').style.color = ok?'#9fe6b0':'#ffd27a';
   });
+
+  // تسجيل في ورقة جوجل ومنع إعادة الاختبار لاحقا
+  recordToSheet({
+    action:'record', status:'finished',
+    first:S.first, last:S.last,
+    score:`${score}/${TOTAL*POINTS_PER}`, percent:pct+'%',
+    helpers:`${6-S.helpers}/6`, duration:`${mm}:${String(ss).padStart(2,'0')}`,
+    detail:detail
+  });
 }
 
 function showResult(score,pct,solved,durTxt){
@@ -792,6 +851,13 @@ function endCheat(reason){
     'المهمات_المحلولة_قبل_التوقف':`${solved}`,
     'الوقت':new Date().toLocaleString('ar-DZ')+' ('+new Date().toISOString()+')'
   }).then(ok=>{ $('cheatSent').textContent= ok?'📨 تم إعلام الأستاذة بهذه المحاولة.':'⚠️ تعذّر الإرسال، لكن سُجّلت المحاولة.'; });
+
+  // تسجيل المحاولة في ورقة جوجل (يُحتسب أداءً للاختبار فيُمنع من الإعادة حتى يسمح الأستاذ)
+  recordToSheet({
+    action:'record', status:'cheat',
+    first:S.first, last:S.last,
+    detail:'محاولة غش: '+reason+' (عند السؤال '+(S.idx+1)+')'
+  });
 }
 
 // مخالفة ليّنة: تحذير أول ثم إنهاء (للخروج من ملء الشاشة / تبديل النافذة)
