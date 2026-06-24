@@ -81,8 +81,11 @@ body{-webkit-user-select:none;-moz-user-select:none;user-select:none}
 .progress{display:flex;gap:.4rem;margin-bottom:1.3rem;flex-wrap:wrap}
 .pdot{flex:1;min-width:20px;height:9px;border-radius:50px;background:rgba(255,255,255,.1);transition:.3s;position:relative}
 .pdot.cur{background:var(--gold);box-shadow:0 0 12px rgba(255,210,0,.6)}
+.pdot.answered{background:linear-gradient(90deg,var(--cyan),var(--purple));opacity:.85}
 .pdot.done{background:var(--green)}
 .pdot.fail{background:var(--red)}
+.oneshot-note{margin-top:.7rem;font-size:.82rem;line-height:1.7;color:#ffd27a;background:rgba(255,210,0,.08);border:1px solid rgba(255,210,0,.28);border-radius:12px;padding:.6rem .9rem}
+.oneshot-note b{color:var(--gold)}
 
 .q-card{position:relative;overflow:hidden}
 .q-head{display:flex;align-items:center;gap:.9rem;margin-bottom:.5rem}
@@ -158,6 +161,18 @@ body{-webkit-user-select:none;-moz-user-select:none;user-select:none}
 .warn-overlay .wic{font-size:4.5rem;animation:shake .5s ease infinite}
 .warn-overlay h2{font-size:1.9rem;color:var(--gold);margin:1rem 0 .5rem}
 .warn-overlay p{color:rgba(255,255,255,.75);max-width:460px;line-height:1.9;margin-bottom:1.5rem;font-size:1.05rem}
+
+/* نافذة تأكيد الإرسال */
+.confirm-overlay{position:fixed;inset:0;z-index:55;background:rgba(8,4,20,.8);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:1.5rem}
+.confirm-overlay.show{display:flex;animation:fadeIn .25s ease both}
+.confirm-box{background:linear-gradient(135deg,#161636,#0d0d24);border:1.5px solid rgba(255,210,0,.35);border-radius:24px;padding:2rem 1.8rem;max-width:430px;width:100%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+.confirm-ic{font-size:3.2rem;margin-bottom:.4rem}
+.confirm-box h3{font-size:1.4rem;color:var(--gold);margin-bottom:.6rem}
+.confirm-box p{color:rgba(255,255,255,.78);line-height:1.9;font-size:1rem;margin-bottom:1.4rem}
+.confirm-btns{display:flex;gap:.8rem}
+.confirm-btns .btn{flex:1;padding:.9rem 1rem;font-size:1.02rem}
+.btn-confirm-yes{background:linear-gradient(135deg,var(--green),var(--cyan));color:#04210f;box-shadow:0 8px 22px rgba(46,204,113,.3)}
+.btn-confirm-no{background:rgba(255,255,255,.08);border:1px solid var(--bd)}
 
 /* انفجار النجوم عند الإجابة الصحيحة */
 .spark{position:fixed;top:0;font-size:1.6rem;z-index:60;pointer-events:none;animation:sparkFall 1.4s ease-in forwards}
@@ -284,6 +299,19 @@ body{-webkit-user-select:none;-moz-user-select:none;user-select:none}
   <h2>عُد إلى ملء الشاشة!</h2>
   <p>لقد خرجت من وضع ملء الشاشة. هذا <b>تحذيرك الأخير</b> ⚠️<br>إذا خرجت مرة أخرى سينتهي اختبارك.</p>
   <button class="btn btn-xl" style="max-width:340px" id="backFsBtn">🔙 العودة وإكمال الاختبار</button>
+</div>
+
+<!-- نافذة تأكيد الإرسال -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-ic">📨</div>
+    <h3 id="confirmTitle">إرسال الإجابة؟</h3>
+    <p id="confirmMsg">لن تتمكن من العودة إلى هذا السؤال بعد الإرسال.</p>
+    <div class="confirm-btns">
+      <button class="btn btn-confirm-yes" id="confirmYes">نعم، أرسل ▶</button>
+      <button class="btn btn-confirm-no" id="confirmNo">تراجع</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -543,7 +571,8 @@ function buildProgress(){
 function updateProgress(){
   for(let i=0;i<TOTAL;i++){
     const d=$('pdot'+i); if(!d)continue;
-    d.className='pdot'+(i===S.idx?' cur':'')+(S.status[i]==='solved'?' done':'')+(S.status[i]==='failed'?' fail':'');
+    // لون محايد للأسئلة المُرسلة (لا نكشف صحّتها)، الذهبي للسؤال الحالي
+    d.className='pdot'+(i===S.idx?' cur':(i<S.idx?' answered':''));
   }
 }
 function renderHearts(){
@@ -577,13 +606,12 @@ function renderQuestion(){
     ${inputNote}
     <div class="btn-row">
       <button class="btn btn-run" id="runBtn">▶️ شغّل</button>
-      <button class="btn btn-submit" id="submitBtn">✅ أرسل الإجابة</button>
       <button class="btn btn-help" id="helpBtn">💡 مساعدة نحوية</button>
-      ${S.idx>0?'<button class="btn btn-nav" id="prevBtn">◀ السابق</button>':''}
       ${last
-        ? '<button class="btn btn-finish" id="finishBtn">🏁 إنهاء الاختبار</button>'
-        : '<button class="btn btn-nav" id="nextBtn">التالي ▶</button>'}
+        ? '<button class="btn btn-finish" id="submitBtn">🏁 أرسل وأنهِ الاختبار</button>'
+        : '<button class="btn btn-submit" id="submitBtn">📨 أرسل وانتقل ▶</button>'}
     </div>
+    <div class="oneshot-note">⚠️ جرّب كودك بزرّ «شغّل» قبل الإرسال. بعد الإرسال <b>تنتقل للسؤال التالي مباشرة ولا يمكنك العودة</b>.</div>
     <div class="console" id="console"></div>
     <div class="feedback" id="feedback"></div>
   `;
@@ -595,15 +623,7 @@ function renderQuestion(){
   $('runBtn').addEventListener('click',onRun);
   $('submitBtn').addEventListener('click',onSubmit);
   $('helpBtn').addEventListener('click',onHelp);
-  if($('prevBtn'))$('prevBtn').addEventListener('click',()=>goTo(S.idx-1));
-  if($('nextBtn'))$('nextBtn').addEventListener('click',()=>goTo(S.idx+1));
-  if($('finishBtn'))$('finishBtn').addEventListener('click',finishExam);
   updateHelpBtn();
-  // استعادة حالة سؤال محلول
-  if(S.status[S.idx]==='solved'){
-    const fb=$('feedback'); fb.className='feedback show good';
-    fb.innerHTML='🌟 لقد حللت هذه المهمة بنجاح! يمكنك تعديلها أو الانتقال للتالية.';
-  }
   updateProgress();
 }
 function updateHelpBtn(){
@@ -611,10 +631,17 @@ function updateHelpBtn(){
   if(S.helpers<=0){b.disabled=true;b.textContent='💡 لا مساعدات (0)';}
   else{b.textContent=`💡 مساعدة نحوية (${S.helpers})`;}
 }
-function goTo(i){
-  if(i<0||i>=TOTAL||S.busy)return;
-  S.idx=i; renderQuestion();
-  window.scrollTo({top:0,behavior:'smooth'});
+/* نافذة تأكيد داخلية (لا تخرج من ملء الشاشة كـ confirm العادية) */
+function showConfirm(title,msg){
+  return new Promise(res=>{
+    $('confirmTitle').textContent=title;
+    $('confirmMsg').textContent=msg;
+    $('confirmOverlay').classList.add('show');
+    const yes=$('confirmYes'), no=$('confirmNo');
+    const done=(v)=>{ $('confirmOverlay').classList.remove('show'); yes.onclick=null; no.onclick=null; res(v); };
+    yes.onclick=()=>done(true);
+    no.onclick=()=>done(false);
+  });
 }
 
 /* محرّر: Tab = 4 مسافات، Enter يحافظ على الإزاحة */
@@ -671,21 +698,25 @@ function showConsole(text,isErr){
 async function onSubmit(){
   if(S.busy)return;
   const code=$('codeInput').value;
-  const fb=$('feedback');
-  if(!code.trim()){ feedback('bad','✋ المحرّر فارغ! اكتب حلّك أولا.'); return; }
-  S.busy=true; $('submitBtn').textContent='⏳ نصحّح...';
+  if(!code.trim()){ feedback('bad','✋ المحرّر فارغ! اكتب حلّك أولا قبل الإرسال.'); return; }
+  const last=S.idx===TOTAL-1;
+  // تأكيد (نافذة داخلية حتى لا نخرج من ملء الشاشة)
+  const ok=await showConfirm(
+    last?'🏁 إرسال وإنهاء الاختبار؟':'📨 إرسال هذه الإجابة؟',
+    last?'هذه آخر مهمة. بعد الإرسال يُحسب اختبارك وينتهي.':'بعد الإرسال تنتقل للسؤال التالي مباشرة، ولن تتمكن من العودة إلى هذا السؤال.'
+  );
+  if(!ok)return;
+  S.busy=true; $('submitBtn').textContent='⏳ نسجّل إجابتك...'; $('submitBtn').disabled=true;
+  // نصحّح بصمت: نسجّل النتيجة داخليا دون إخبار الطالب بصحّتها
   const res=await grade(EXERCISES[S.idx], code);
-  S.busy=false; $('submitBtn').textContent='✅ أرسل الإجابة';
-
-  if(res.pass){
-    S.status[S.idx]='solved';
-    feedback('good','🎉 إجابة صحيحة يا بطل! +'+POINTS_PER+' نقاط. أحسنت! '+(S.idx<TOTAL-1?'انتقل إلى المهمة التالية ▶':'اضغط «إنهاء الاختبار» 🏁'));
-    sparkBurst();
+  S.status[S.idx]=res.pass?'solved':'failed';
+  S.busy=false;
+  if(last){
+    finishExam();
   } else {
-    if(S.status[S.idx]!=='solved')S.status[S.idx]='failed';
-    feedback('bad', res.msg);
+    S.idx++; renderQuestion();
+    window.scrollTo({top:0,behavior:'smooth'});
   }
-  updateProgress();
 }
 function feedback(type,msg){
   const fb=$('feedback');
@@ -790,10 +821,6 @@ function friendlyError(err){
    ================================================================= */
 async function finishExam(){
   const solved=S.status.filter(s=>s==='solved').length;
-  const unsolvedCount=S.status.filter(s=>s!=='solved').length;
-  if(unsolvedCount>0){
-    if(!confirm(`لديك ${unsolvedCount} مهمة لم تُحلّ بعد. هل أنت متأكد أنك تريد إنهاء الاختبار وإرسال نتيجتك؟`))return;
-  }
   S.examActive=false; // لمنع اعتبار الخروج من ملء الشاشة غشّا
   const score=solved*POINTS_PER;
   const pct=Math.round(score/(TOTAL*POINTS_PER)*100);
