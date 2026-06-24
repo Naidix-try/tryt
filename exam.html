@@ -193,6 +193,11 @@ body{-webkit-user-select:none;-moz-user-select:none;user-select:none}
         </div>
       </div>
 
+      <div class="field" id="codeField" style="display:none;margin-bottom:1.2rem">
+        <label>🔑 الرمز السري (من الأستاذة)</label>
+        <input id="studentCode" type="text" placeholder="اكتب رمزك السري هنا..." autocomplete="off" maxlength="20" dir="ltr" style="text-align:center;letter-spacing:2px">
+      </div>
+
       <div class="rules">
         <h3>📜 قوانين القلعة السحرية</h3>
         <ul>
@@ -420,7 +425,7 @@ const S={
   answers:Array(TOTAL).fill(''),
   status:Array(TOTAL).fill('unsolved'),
   startTime:0, examActive:false, ending:false, softWarned:false, busy:false,
-  checkedOK:false
+  checkedOK:false, code:''
 };
 const FORMSPREE='https://formspree.io/f/mbdvdqpe';
 
@@ -450,33 +455,56 @@ function sparkBurst(){const E=['⭐','✨','🌟','💫','🎉','🪄'];for(let 
 /* =================================================================
    بدء الاختبار
    ================================================================= */
+// إظهار حقل الرمز السري فقط عند تفعيل خادم جوجل
+if(SHEET_API){ $('codeField').style.display='block'; }
+
 $('startBtn').addEventListener('click',async()=>{
   const f=$('firstName').value.trim(), l=$('lastName').value.trim();
   if(f.length<2||l.length<2){
     alert('✋ من فضلك اكتب اسمك ولقبك أولا حتى نتمكن من إرسال نتيجتك للأستاذة!');
     return;
   }
-  S.first=f; S.last=l;
+  if(!S.checkedOK){ S.first=f; S.last=l; }   // لا نُعيد كتابة الاسم الرسمي بعد التحقّق
   const btn=$('startBtn');
 
-  // الخطوة ١: التحقّق من أنّ الطالب لم يؤدِّ الاختبار سابقا (إن كانت الميزة مفعّلة)
+  // الخطوة ١: التحقّق من الرمز السري ومن أنّ الطالب لم يؤدِّ الاختبار سابقا
   if(SHEET_API && !S.checkedOK){
-    btn.disabled=true; btn.textContent='⏳ جارٍ التحقّق...';
-    const res=await jsonp(SHEET_API+'?action=check&name='+encodeURIComponent(f+' '+l), 9000);
-    btn.disabled=false;
-    if(res.ok && res.data && res.data.taken){
-      btn.textContent='🚫 لا يمكنك إعادة الاختبار';
-      alert('🛑 لقد أدّيتَ هذا الاختبار من قبل يا '+f+'!\n\nإذا كنت بحاجة لإعادته فعلا، فاطلب الإذن من الأستاذة.');
+    const code=$('studentCode').value.trim();
+    if(code.length<1){
+      alert('🔑 من فضلك اكتب رمزك السري الذي أعطتك إياه الأستاذة.');
       return;
     }
-    // ننجح في التحقّق (أو تعذّر الاتصال) فنتابع، وننتظر نقرة جديدة لتفعيل ملء الشاشة
+    btn.disabled=true; btn.textContent='⏳ جارٍ التحقّق...';
+    const res=await jsonp(SHEET_API+'?action=verify&first='+encodeURIComponent(f)+'&last='+encodeURIComponent(l)+'&code='+encodeURIComponent(code), 9000);
+    btn.disabled=false;
+    const d=res.data;
+    if(!res.ok || !d){
+      // تعذّر الاتصال بالخادم: لا نمنع التلميذ بسبب مشكلة شبكة
+      S.code=code; S.checkedOK=true;
+      btn.textContent='🚀 ادخل وضع ملء الشاشة وابدأ';
+      return;
+    }
+    if(!d.valid){
+      btn.textContent='🚀 ابدأ الاختبار (ملء الشاشة)';
+      alert('❌ الرمز السري غير صحيح!\n\nتأكّد من رمزك، أو اطلبه من الأستاذة. لا يمكنك الدخول باسم زميلك.');
+      return;
+    }
+    if(d.taken){
+      btn.textContent='🚫 لا يمكنك إعادة الاختبار';
+      alert('🛑 لقد أدّيتَ هذا الاختبار من قبل!\n\nإذا كنت بحاجة لإعادته فعلا، فاطلب الإذن من الأستاذة.');
+      return;
+    }
+    // صحيح: نعتمد الاسم الرسمي من قائمة الأستاذة (يمنع انتحال اسم آخر)
+    S.code=code;
+    if(d.first) S.first=d.first;
+    if(d.last)  S.last=d.last;
     S.checkedOK=true;
     btn.textContent='🚀 ادخل وضع ملء الشاشة وابدأ';
     return;
   }
 
   // الخطوة ٢: هذه النقرة إيماءة مستخدم صالحة لطلب ملء الشاشة
-  $('studentName').textContent=f+' '+l;
+  $('studentName').textContent=S.first+' '+S.last;
   try{ await (document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen()); }catch(e){}
   S.examActive=true; S.startTime=Date.now();
   buildProgress(); renderHearts(); showScreen('examScreen'); renderQuestion();
@@ -797,7 +825,7 @@ async function finishExam(){
   // تسجيل في ورقة جوجل ومنع إعادة الاختبار لاحقا
   recordToSheet({
     action:'record', status:'finished',
-    first:S.first, last:S.last,
+    first:S.first, last:S.last, code:S.code,
     score:`${score}/${TOTAL*POINTS_PER}`, percent:pct+'%',
     helpers:`${6-S.helpers}/6`, duration:`${mm}:${String(ss).padStart(2,'0')}`,
     detail:detail
@@ -855,7 +883,7 @@ function endCheat(reason){
   // تسجيل المحاولة في ورقة جوجل (يُحتسب أداءً للاختبار فيُمنع من الإعادة حتى يسمح الأستاذ)
   recordToSheet({
     action:'record', status:'cheat',
-    first:S.first, last:S.last,
+    first:S.first, last:S.last, code:S.code,
     detail:'محاولة غش: '+reason+' (عند السؤال '+(S.idx+1)+')'
   });
 }
