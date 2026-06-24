@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الاختبار السحري · رحلة البرمجة 🪄</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<!-- محرّك بايثون الحقيقي (Skulpt) - محلّي ليعمل بدون إنترنت -->
+<script src="lib/skulpt.min.js"></script>
+<script src="lib/skulpt-stdlib.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#050514;--card:rgba(255,255,255,.05);--bd:rgba(255,255,255,.12);
+  --gold:#ffd200;--purple:#b721ff;--blue:#4A90D9;--green:#2ecc71;--cyan:#21d4fd;--pink:#f368e0;--red:#ff5b6e;
+}
+html,body{height:100%}
+body{font-family:'Cairo',sans-serif;background:var(--bg);color:#fff;overflow-x:hidden;min-height:100vh}
+
+/* منع تحديد ونسخ النص في كامل الصفحة ما عدا محرّر الكود */
+body{-webkit-user-select:none;-moz-user-select:none;user-select:none}
+.code-input,.console{-webkit-user-select:text;-moz-user-select:text;user-select:text}
+
+/* ===== الخلفية ===== */
+.stars-bg{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.star{position:absolute;border-radius:50%;background:#fff;animation:twinkle var(--d,3s) ease-in-out infinite var(--delay,0s)}
+@keyframes twinkle{0%,100%{opacity:.12;transform:scale(1)}50%{opacity:1;transform:scale(1.8)}}
+.nebula{position:fixed;border-radius:50%;filter:blur(90px);opacity:.32;pointer-events:none;z-index:0;animation:nebFloat 16s ease-in-out infinite}
+.n1{width:480px;height:480px;background:radial-gradient(circle,var(--blue),transparent 70%);top:-150px;right:-120px}
+.n2{width:440px;height:440px;background:radial-gradient(circle,var(--purple),transparent 70%);bottom:-130px;left:-120px;animation-delay:5s}
+.n3{width:340px;height:340px;background:radial-gradient(circle,#f7971e,transparent 70%);top:40%;left:55%;animation-delay:9s;opacity:.16}
+@keyframes nebFloat{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(30px,-30px) scale(1.12)}}
+
+/* ===== الشاشات ===== */
+.screen{position:relative;z-index:1;min-height:100vh;display:none;flex-direction:column;align-items:center;padding:2.2rem 1.2rem 3rem}
+.screen.active{display:flex;animation:fadeIn .5s ease both}
+@keyframes fadeIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* ===== شاشة البداية ===== */
+.intro-box{width:100%;max-width:780px;text-align:center}
+.wizard{font-size:4.4rem;display:inline-block;animation:floatUD 3s ease-in-out infinite;filter:drop-shadow(0 0 22px rgba(255,210,0,.45))}
+@keyframes floatUD{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-16px) rotate(2deg)}}
+.title{font-size:clamp(2rem,5.5vw,3.4rem);font-weight:900;line-height:1.4;margin:.6rem 0 .4rem;background:linear-gradient(120deg,#fff,#a0c4ff 30%,#d4a0ff 55%,#ffd200 80%,#fff);background-size:220% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:shimmer 5.5s linear infinite}
+@keyframes shimmer{to{background-position:220% center}}
+.subtitle{color:rgba(255,255,255,.66);font-size:1.05rem;line-height:1.9;max-width:560px;margin:0 auto 1.6rem}
+
+.glass{background:var(--card);border:1px solid var(--bd);border-radius:26px;padding:1.8rem 1.6rem;backdrop-filter:blur(10px);box-shadow:0 18px 50px rgba(0,0,0,.4)}
+
+.name-grid{display:flex;gap:1rem;flex-wrap:wrap;margin:.4rem 0 1.2rem}
+.field{flex:1;min-width:200px;text-align:right}
+.field label{display:block;font-size:.92rem;font-weight:700;color:#a0c4ff;margin-bottom:.5rem}
+.field input{width:100%;padding:.95rem 1.1rem;border-radius:16px;border:1.6px solid var(--bd);background:rgba(255,255,255,.06);color:#fff;font-family:'Cairo',sans-serif;font-size:1.05rem;font-weight:600;outline:none;transition:.25s;-webkit-user-select:text;user-select:text}
+.field input:focus{border-color:var(--gold);background:rgba(255,210,0,.07);box-shadow:0 0 0 4px rgba(255,210,0,.12)}
+.field input::placeholder{color:rgba(255,255,255,.35)}
+
+/* قواعد الاختبار */
+.rules{text-align:right;margin:1.2rem 0;background:rgba(255,91,110,.07);border:1.4px solid rgba(255,91,110,.32);border-radius:20px;padding:1.3rem 1.4rem}
+.rules h3{color:#ffb3bc;font-size:1.15rem;margin-bottom:.9rem;display:flex;align-items:center;gap:.5rem}
+.rules ul{list-style:none;display:flex;flex-direction:column;gap:.7rem}
+.rules li{display:flex;align-items:flex-start;gap:.6rem;font-size:.96rem;line-height:1.7;color:rgba(255,255,255,.82)}
+.rules li .ic{font-size:1.15rem;flex:0 0 auto;margin-top:.1rem}
+.moral{margin-top:1rem;background:linear-gradient(135deg,rgba(33,212,253,.1),rgba(155,93,229,.1));border:1.4px solid rgba(33,212,253,.3);border-radius:18px;padding:1.1rem 1.3rem;font-size:.98rem;line-height:1.9;color:#cfeaff}
+.moral b{color:var(--gold)}
+
+.btn{border:none;cursor:pointer;font-family:'Cairo',sans-serif;font-weight:800;border-radius:50px;transition:transform .2s,box-shadow .2s,filter .2s;color:#fff}
+.btn:active{transform:scale(.97)}
+.btn-xl{width:100%;padding:1.1rem;font-size:1.25rem;margin-top:1.2rem;background:linear-gradient(135deg,var(--gold),#f7971e);color:#1a1300;box-shadow:0 12px 34px rgba(247,151,30,.4)}
+.btn-xl:hover{transform:translateY(-3px);box-shadow:0 16px 44px rgba(247,151,30,.6)}
+.btn-xl:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.4);transform:none}
+
+/* ===== شاشة الاختبار ===== */
+.exam-wrap{width:100%;max-width:1050px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.who{display:flex;align-items:center;gap:.6rem;font-weight:700}
+.who .av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;background:linear-gradient(135deg,var(--purple),var(--cyan))}
+.who small{display:block;color:rgba(255,255,255,.5);font-weight:600;font-size:.78rem}
+.helpers{display:flex;align-items:center;gap:.5rem;background:rgba(255,210,0,.1);border:1.4px solid rgba(255,210,0,.35);border-radius:50px;padding:.45rem 1rem;font-weight:800;color:var(--gold);font-size:.92rem}
+.helpers .hheart{font-size:.85rem;filter:grayscale(0)}
+.helpers .hheart.used{filter:grayscale(1);opacity:.35}
+
+.progress{display:flex;gap:.4rem;margin-bottom:1.3rem;flex-wrap:wrap}
+.pdot{flex:1;min-width:20px;height:9px;border-radius:50px;background:rgba(255,255,255,.1);transition:.3s;position:relative}
+.pdot.cur{background:var(--gold);box-shadow:0 0 12px rgba(255,210,0,.6)}
+.pdot.done{background:var(--green)}
+.pdot.fail{background:var(--red)}
+
+.q-card{position:relative;overflow:hidden}
+.q-head{display:flex;align-items:center;gap:.9rem;margin-bottom:.5rem}
+.q-emoji{width:60px;height:60px;flex:0 0 auto;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:2rem;background:rgba(255,255,255,.07);border:1.5px solid var(--bd)}
+.q-meta .q-lesson{font-size:.75rem;font-weight:700;color:var(--cyan);background:rgba(33,212,253,.12);border:1px solid rgba(33,212,253,.3);padding:.15rem .7rem;border-radius:50px}
+.q-meta h2{font-size:1.4rem;font-weight:900;margin-top:.35rem}
+.q-num{margin-right:auto;font-weight:900;font-size:1.1rem;color:rgba(255,255,255,.4)}
+.q-desc{font-size:1.05rem;line-height:2;color:rgba(255,255,255,.88);margin:.8rem 0 1rem;background:rgba(255,255,255,.04);border:1px solid var(--bd);border-right:4px solid var(--gold);border-radius:14px;padding:1rem 1.2rem}
+.q-desc code{font-family:'Courier New',monospace;background:rgba(255,210,0,.14);color:#ffe680;padding:.1rem .45rem;border-radius:6px;direction:ltr;display:inline-block;font-weight:700}
+
+.form-toggle{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.86rem;font-weight:700;color:#a0c4ff;background:rgba(74,144,217,.12);border:1px dashed rgba(74,144,217,.4);padding:.4rem .9rem;border-radius:50px;margin-bottom:.6rem;transition:.2s}
+.form-toggle:hover{background:rgba(74,144,217,.22)}
+.form-box{display:none;margin-bottom:.9rem}
+.form-box.show{display:block;animation:fadeIn .3s ease both}
+.form-box pre{background:#0a0a1e;border:1px solid var(--bd);border-radius:12px;padding:.9rem 1rem;direction:ltr;text-align:left;font-family:'Courier New',monospace;font-size:.92rem;line-height:1.7;color:#bfe7ff;overflow-x:auto}
+.form-box .ftip{font-size:.78rem;color:rgba(255,255,255,.45);margin-top:.4rem}
+
+.editor-label{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;font-size:.85rem;font-weight:700;color:rgba(255,255,255,.6)}
+.code-input{width:100%;min-height:170px;background:#0a0a1e;border:1.6px solid var(--bd);border-radius:14px;padding:1rem 1.1rem;color:#e8faff;font-family:'Courier New',Consolas,monospace;font-size:1.02rem;line-height:1.75;direction:ltr;text-align:left;resize:vertical;outline:none;tab-size:4;transition:border-color .2s,box-shadow .2s;white-space:pre}
+.code-input:focus{border-color:var(--cyan);box-shadow:0 0 0 4px rgba(33,212,253,.13)}
+
+.btn-row{display:flex;gap:.8rem;flex-wrap:wrap;margin-top:.9rem}
+.btn-run{background:linear-gradient(135deg,var(--blue),#764ba2);padding:.85rem 1.7rem;font-size:1rem;box-shadow:0 8px 22px rgba(74,144,217,.32)}
+.btn-run:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(74,144,217,.5)}
+.btn-submit{background:linear-gradient(135deg,var(--green),var(--cyan));color:#04210f;padding:.85rem 1.7rem;font-size:1rem;box-shadow:0 8px 22px rgba(46,204,113,.32)}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(46,204,113,.5)}
+.btn-help{background:rgba(255,210,0,.14);border:1.4px solid rgba(255,210,0,.4);color:var(--gold);padding:.85rem 1.5rem;font-size:.98rem}
+.btn-help:hover{background:rgba(255,210,0,.24)}
+.btn-help:disabled{opacity:.4;cursor:not-allowed}
+.btn-nav{background:rgba(255,255,255,.08);border:1px solid var(--bd);padding:.85rem 1.5rem;font-size:.98rem;margin-right:auto}
+.btn-nav:hover{background:rgba(255,255,255,.16)}
+.btn-finish{background:linear-gradient(135deg,var(--gold),var(--pink));color:#1a1300;padding:.85rem 1.9rem;font-size:1.05rem;margin-right:auto;box-shadow:0 8px 24px rgba(243,104,224,.35)}
+
+.console{margin-top:1rem;background:#06061a;border:1px solid var(--bd);border-radius:14px;min-height:54px;padding:.9rem 1.1rem;font-family:'Courier New',monospace;font-size:.98rem;line-height:1.7;direction:ltr;text-align:left;white-space:pre-wrap;word-break:break-word;color:#9fe6b0;display:none}
+.console.show{display:block;animation:fadeIn .25s ease both}
+.console .c-head{color:rgba(255,255,255,.4);font-family:'Cairo',sans-serif;direction:rtl;text-align:right;font-size:.78rem;margin-bottom:.4rem;display:block}
+.console.err{color:#ff9aa6}
+
+.feedback{margin-top:1rem;border-radius:14px;padding:.95rem 1.2rem;font-size:1rem;font-weight:700;line-height:1.8;display:none;align-items:flex-start;gap:.6rem}
+.feedback.show{display:flex;animation:pop .3s ease both}
+@keyframes pop{0%{transform:scale(.9);opacity:0}100%{transform:scale(1);opacity:1}}
+.feedback.good{background:rgba(46,204,113,.14);border:1.4px solid rgba(46,204,113,.45);color:#9ff5bd}
+.feedback.bad{background:rgba(255,91,110,.12);border:1.4px solid rgba(255,91,110,.4);color:#ffb3bc}
+.feedback.hint{background:rgba(255,210,0,.12);border:1.4px solid rgba(255,210,0,.42);color:#ffe28a}
+
+/* ===== شاشة النتيجة ===== */
+.result-box{width:100%;max-width:640px;text-align:center}
+.ring{position:relative;width:200px;height:200px;margin:0 auto 1rem}
+.ring svg{transform:rotate(-90deg)}
+.ring .ring-bg{stroke:rgba(255,255,255,.1)}
+.ring .ring-fg{stroke:url(#grad);stroke-linecap:round;transition:stroke-dashoffset 1.4s cubic-bezier(.2,.8,.2,1)}
+.ring .ring-txt{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .ring-pct{font-size:2.6rem;font-weight:900;color:var(--gold)}
+.ring .ring-sub{font-size:.85rem;color:rgba(255,255,255,.55)}
+.result-grade{font-size:1.5rem;font-weight:900;margin:.4rem 0}
+.result-msg{color:rgba(255,255,255,.7);line-height:1.9;margin-bottom:1.2rem}
+.qbreak{display:flex;gap:.45rem;flex-wrap:wrap;justify-content:center;margin:1rem 0}
+.qbreak span{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem}
+.qbreak .ok{background:rgba(46,204,113,.18);border:1.4px solid var(--green);color:#9ff5bd}
+.qbreak .no{background:rgba(255,91,110,.14);border:1.4px solid var(--red);color:#ffb3bc}
+.sent-note{font-size:.9rem;color:#9fe6b0;background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.3);border-radius:50px;padding:.5rem 1.1rem;display:inline-flex;align-items:center;gap:.5rem;margin-top:.6rem}
+
+/* ===== شاشة الإنهاء بسبب الغش ===== */
+.cheat-box{width:100%;max-width:640px;text-align:center}
+.cheat-ic{font-size:5rem;animation:shake .6s ease}
+@keyframes shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+.cheat-box h2{font-size:2rem;color:#ff8a98;margin:.6rem 0}
+.cheat-reason{background:rgba(255,91,110,.12);border:1.4px solid rgba(255,91,110,.4);border-radius:16px;padding:.9rem 1.2rem;color:#ffb3bc;font-weight:700;margin:1rem 0}
+
+/* تحذير العودة لملء الشاشة */
+.warn-overlay{position:fixed;inset:0;z-index:50;background:rgba(8,4,20,.96);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem}
+.warn-overlay.show{display:flex}
+.warn-overlay .wic{font-size:4.5rem;animation:shake .5s ease infinite}
+.warn-overlay h2{font-size:1.9rem;color:var(--gold);margin:1rem 0 .5rem}
+.warn-overlay p{color:rgba(255,255,255,.75);max-width:460px;line-height:1.9;margin-bottom:1.5rem;font-size:1.05rem}
+
+/* انفجار النجوم عند الإجابة الصحيحة */
+.spark{position:fixed;top:0;font-size:1.6rem;z-index:60;pointer-events:none;animation:sparkFall 1.4s ease-in forwards}
+@keyframes sparkFall{0%{opacity:1;transform:translateY(0) rotate(0)}100%{opacity:0;transform:translateY(100vh) rotate(360deg)}}
+
+@media(max-width:560px){
+  .q-meta h2{font-size:1.15rem}.q-num{display:none}
+  .btn-nav,.btn-finish{margin-right:0}
+}
+</style>
+</head>
+<body>
+
+<div class="stars-bg" id="stars"></div>
+<div class="nebula n1"></div><div class="nebula n2"></div><div class="nebula n3"></div>
+
+<!-- ============ شاشة البداية ============ -->
+<section class="screen active" id="introScreen">
+  <div class="intro-box">
+    <div class="wizard">🧙‍♂️</div>
+    <h1 class="title">الاختبار السحري الكبير</h1>
+    <p class="subtitle">حان وقت إثبات مهاراتك أيها المبرمج الصغير! ١٠ مهمات سحرية تنتظرك 🪄 اكتب الكود بنفسك، شغّله، وأرسل إجابتك.</p>
+
+    <div class="glass">
+      <div class="name-grid">
+        <div class="field">
+          <label>✨ اسمك</label>
+          <input id="firstName" type="text" placeholder="اكتب اسمك هنا..." autocomplete="off" maxlength="30">
+        </div>
+        <div class="field">
+          <label>🪪 لقبك (اسم العائلة)</label>
+          <input id="lastName" type="text" placeholder="اكتب لقبك هنا..." autocomplete="off" maxlength="30">
+        </div>
+      </div>
+
+      <div class="rules">
+        <h3>📜 قوانين القلعة السحرية</h3>
+        <ul>
+          <li><span class="ic">🖥️</span><span>سيعمل الاختبار في وضع <b>ملء الشاشة</b>. الخروج منه يُنهي اختبارك.</span></li>
+          <li><span class="ic">🚫</span><span><b>نسخ</b> نص التمرين ممنوع.</span></li>
+          <li><span class="ic">📸</span><span>محاولة <b>التقاط صورة للشاشة</b> (Print Screen) تُنهي اختبارك فورا.</span></li>
+          <li><span class="ic">🪟</span><span>الخروج من النافذة أو فتح تبويب آخر يُنهي اختبارك.</span></li>
+          <li><span class="ic">💡</span><span>لديك <b>٦ مساعدات نحوية</b> فقط طوال الاختبار، فاستعملها بحكمة!</span></li>
+          <li><span class="ic">🔁</span><span>إذا انتهى اختبارك بسبب مخالفة، عليك طلب <b>إعادة المحاولة من الأستاذة</b>.</span></li>
+        </ul>
+        <div class="moral">
+          💙 تذكّر يا بطل: <b>الغش ليس خداعا لأحد سواك أنت.</b> نحن هنا لنتعلّم ونتطوّر، لا لنرسم صورة جميلة كاذبة ليفرح بها الآخرون. كن صادقا مع نفسك، فالصدق أجمل من أي علامة.
+        </div>
+      </div>
+
+      <button class="btn btn-xl" id="startBtn">🚀 ابدأ الاختبار (ملء الشاشة)</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ شاشة الاختبار ============ -->
+<section class="screen" id="examScreen">
+  <div class="exam-wrap">
+    <div class="topbar">
+      <div class="who">
+        <div class="av">🧒</div>
+        <div><span id="studentName">···</span><small>أيها المبرمج الصغير</small></div>
+      </div>
+      <div class="helpers" id="helpersBox" title="المساعدات النحوية المتبقية">
+        <span>💡 المساعدات:</span>
+        <span id="heartRow"></span>
+        <b id="helpersNum">6</b>
+      </div>
+    </div>
+
+    <div class="progress" id="progress"></div>
+
+    <div class="glass q-card" id="qCard"><!-- يُملأ ديناميكيا --></div>
+  </div>
+</section>
+
+<!-- ============ شاشة النتيجة ============ -->
+<section class="screen" id="resultScreen">
+  <div class="result-box">
+    <div style="font-size:3.4rem">🏆</div>
+    <h1 class="title" style="font-size:2.2rem">انتهى الاختبار!</h1>
+    <div class="ring">
+      <svg width="200" height="200">
+        <defs><linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#ffd200"/><stop offset="100%" stop-color="#f368e0"/>
+        </linearGradient></defs>
+        <circle class="ring-bg" cx="100" cy="100" r="86" fill="none" stroke-width="16"/>
+        <circle class="ring-fg" id="ringFg" cx="100" cy="100" r="86" fill="none" stroke-width="16" stroke-dasharray="540" stroke-dashoffset="540"/>
+      </svg>
+      <div class="ring-txt"><span class="ring-pct" id="ringPct">0%</span><span class="ring-sub" id="ringScore">0 من 100</span></div>
+    </div>
+    <div class="result-grade" id="resultGrade">···</div>
+    <p class="result-msg" id="resultMsg"></p>
+    <div class="qbreak" id="qbreak"></div>
+    <div><span class="sent-note" id="sentNote">⏳ يتم إرسال نتيجتك إلى الأستاذة...</span></div>
+    <p style="margin-top:1.4rem;color:rgba(255,255,255,.45);font-size:.9rem">يمكنك الآن الخروج من ملء الشاشة بأمان (اضغط Esc).</p>
+  </div>
+</section>
+
+<!-- ============ شاشة الإنهاء بسبب مخالفة ============ -->
+<section class="screen" id="cheatScreen">
+  <div class="cheat-box">
+    <div class="cheat-ic">⚠️</div>
+    <h2>انتهى اختبارك</h2>
+    <div class="cheat-reason" id="cheatReason">···</div>
+    <div class="moral" style="text-align:right">
+      💙 <b>الغش ليس خداعا لأحد سواك أنت.</b> نحن هنا لنتعلّم ونتطوّر، لا لنرسم صورة جميلة كاذبة ليفرح بها الآخرون. لا بأس، الجميع يخطئ! المهم أن نتعلّم من أخطائنا ونكون صادقين مع أنفسنا. 🌟
+    </div>
+    <p style="margin-top:1.4rem;color:rgba(255,255,255,.7);font-size:1.05rem;line-height:1.9">
+      🔁 لإعادة المحاولة، توجّه إلى <b style="color:var(--gold)">الأستاذة</b> واطلب منها السماح لك بالمحاولة من جديد.
+    </p>
+    <span class="sent-note" id="cheatSent" style="margin-top:1rem">📨 تم إعلام الأستاذة.</span>
+  </div>
+</section>
+
+<!-- تحذير ملء الشاشة -->
+<div class="warn-overlay" id="warnOverlay">
+  <div class="wic">🖥️</div>
+  <h2>عُد إلى ملء الشاشة!</h2>
+  <p>لقد خرجت من وضع ملء الشاشة. هذا <b>تحذيرك الأخير</b> ⚠️<br>إذا خرجت مرة أخرى سينتهي اختبارك.</p>
+  <button class="btn btn-xl" style="max-width:340px" id="backFsBtn">🔙 العودة وإكمال الاختبار</button>
+</div>
+
+<script>
+/* =================================================================
+   محرّك بايثون (Skulpt)
+   ================================================================= */
+function builtinRead(x){
+  if(Sk.builtinFiles===undefined||Sk.builtinFiles["files"][x]===undefined)
+    throw "File not found: '"+x+"'";
+  return Sk.builtinFiles["files"][x];
+}
+function runPython(code, inputs){
+  return new Promise((resolve)=>{
+    if(typeof Sk==='undefined'){
+      resolve({ok:false,output:'',error:'تعذّر تحميل محرّك بايثون. تأكد من وجود مجلد lib بجانب الملف.'});
+      return;
+    }
+    let out='';
+    const queue=(inputs||[]).slice();
+    Sk.configure({
+      output:(t)=>{out+=t;},
+      read:builtinRead,
+      inputfun:(p)=> (queue.length? String(queue.shift()) : ''),
+      inputfunTakesPrompt:true,
+      execLimit:7000,
+      __future__:Sk.python3
+    });
+    Sk.execLimit=7000;
+    Sk.misceval.asyncToPromise(()=>Sk.importMainWithBody("<stdin>",false,code,true))
+      .then(()=>resolve({ok:true,output:out}))
+      .catch((err)=>resolve({ok:false,output:out,error:String(err&&err.toString?err.toString():err)}));
+  });
+}
+
+/* =================================================================
+   التمارين العشرة (مبنية على الدروس ١ إلى ٧)
+   ================================================================= */
+const EXERCISES=[
+  { // 1
+    emoji:'📢', lesson:'الدرس ٢ · print',
+    title:'اطبع رسالة',
+    desc:'استعمل الأمر <code>print</code> لطباعة هذه الجملة تماما كما هي:<br><b>مرحبا بالعالم</b>',
+    form:'print("اكتب أي نص تريده هنا")',
+    inputs:[],
+    tests:[{inputs:[],lines:['مرحبا بالعالم']}],
+    require:[{re:/print\s*\(/}]
+  },
+  { // 2
+    emoji:'🎒', lesson:'الدرس ٢ · المتغيّرات',
+    title:'صندوق المتغيّر',
+    desc:'أنشئ متغيّرا اسمه <code>apples</code> قيمته العدد <code>5</code>، ثم اطبع قيمة المتغيّر (وليس الرقم مباشرة).',
+    form:'name = "علي"\nprint(name)',
+    inputs:[],
+    tests:[{inputs:[],lines:['5']}],
+    require:[{re:/apples\s*=\s*5/},{re:/print\s*\(\s*apples\s*\)/}]
+  },
+  { // 3
+    emoji:'👋', lesson:'الدرس ٢ · input',
+    title:'اسأل ورحّب',
+    desc:'اسأل المستخدم عن اسمه باستعمال <code>input</code> وخزّنه في متغيّر <code>name</code>، ثم اطبع جملة ترحيب تحتوي على اسمه.',
+    form:'city = input("ما مدينتك؟ ")\nprint("أهلا بسكان " + city)',
+    inputs:['سارة'],
+    tests:[{inputs:['سارة'],contains:['سارة']},{inputs:['أحمد'],contains:['أحمد']}],
+    require:[{re:/input\s*\(/},{re:/print\s*\(/}]
+  },
+  { // 4
+    emoji:'🎓', lesson:'الدرس ٣ · if / else',
+    title:'ناجح أم راسب؟',
+    desc:'اقرأ درجة الطالب من المستخدم كعدد باستعمال <code>int(input())</code>. إذا كانت <code>50</code> أو أكثر اطبع <b>ناجح</b>، وإلا اطبع <b>راسب</b>.',
+    form:'temp = int(input())\nif temp > 30:\n    print("حار")\nelse:\n    print("معتدل")',
+    inputs:['75'],
+    tests:[{inputs:['75'],contains:['ناجح']},{inputs:['30'],contains:['راسب']}],
+    require:[{re:/\bif\b/},{re:/\belse\b/},{re:/input\s*\(/}]
+  },
+  { // 5
+    emoji:'🚪', lesson:'الدرس ٣ · and',
+    title:'البوّابة السحرية',
+    desc:'اقرأ عمر الزائر كعدد. إذا كان العمر بين <code>10</code> و <code>15</code> (من 10 إلى 15) اطبع <b>مرحبا بك</b>، وإلا اطبع <b>ممنوع الدخول</b>. استعمل الكلمة <code>and</code>.',
+    form:'x = int(input())\nif x > 0 and x < 100:\n    print("ضمن المجال")\nelse:\n    print("خارج المجال")',
+    inputs:['12'],
+    tests:[{inputs:['12'],contains:['مرحبا بك']},{inputs:['20'],contains:['ممنوع الدخول']},{inputs:['8'],contains:['ممنوع الدخول']}],
+    require:[{re:/\band\b/},{re:/\bif\b/}]
+  },
+  { // 6
+    emoji:'🔁', lesson:'الدرس ٤ · while',
+    title:'العدّ بالـ while',
+    desc:'استعمل حلقة <code>while</code> لطباعة الأعداد من <code>1</code> إلى <code>5</code>، كل عدد في سطر مستقل.',
+    form:'n = 1\nwhile n <= 3:\n    print("أهلا")\n    n = n + 1',
+    inputs:[],
+    tests:[{inputs:[],lines:['1','2','3','4','5']}],
+    require:[{re:/\bwhile\b/}]
+  },
+  { // 7
+    emoji:'➕', lesson:'الدرس ٥ · for + range',
+    title:'مجموع الأعداد',
+    desc:'استعمل حلقة <code>for</code> مع <code>range</code> لحساب مجموع الأعداد من <code>1</code> إلى <code>10</code>، ثم اطبع المجموع (يجب أن يكون <b>55</b>).',
+    form:'total = 0\nfor k in range(1, 6):\n    total = total + 10\nprint(total)',
+    inputs:[],
+    tests:[{inputs:[],contains:['55']}],
+    require:[{re:/\bfor\b/},{re:/range\s*\(/}]
+  },
+  { // 8
+    emoji:'🧺', lesson:'الدرس ٦ · القوائم',
+    title:'سلة الفواكه',
+    desc:'أنشئ قائمة <code>fruits</code> فيها <b>تفاح</b> و <b>موز</b>. أضف <b>برتقال</b> إلى القائمة باستعمال <code>append</code>، ثم اطبع عدد عناصر القائمة باستعمال <code>len</code> (يجب أن يكون <b>3</b>).',
+    form:'animals = ["قط", "كلب"]\nanimals.append("أرنب")\nprint(len(animals))',
+    inputs:[],
+    tests:[{inputs:[],contains:['3']}],
+    require:[{re:/\[/},{re:/\.append\s*\(/},{re:/len\s*\(/}]
+  },
+  { // 9
+    emoji:'🛠️', lesson:'الدرس ٧ · الدوال',
+    title:'آلة الجمع',
+    desc:'عرّف دالة اسمها <code>add</code> تأخذ عددين <code>a</code> و <code>b</code> وتُرجع مجموعهما باستعمال <code>return</code>. ثم اطبع نتيجة <code>add(3, 4)</code>.',
+    form:'def greet(name):\n    return "مرحبا " + name\nprint(greet("سارة"))',
+    inputs:[],
+    appendForTest:'\nprint("@@", add(10, 5))',
+    tests:[{inputs:[],contains:['7','15']}],
+    require:[{re:/\bdef\s+add\s*\(/},{re:/\breturn\b/}]
+  },
+  { // 10
+    emoji:'✨', lesson:'تحدٍّ · دوال + for',
+    title:'آلة التربيع',
+    desc:'عرّف دالة <code>square</code> تُرجع مربّع العدد (<code>n * n</code>). ثم باستعمال حلقة <code>for</code> اطبع مربّع الأعداد 1 و 2 و 3، كل واحد في سطر: <b>1</b> ثم <b>4</b> ثم <b>9</b>.',
+    form:'def double(n):\n    return n * 2\nfor i in range(1, 4):\n    print(double(i))',
+    inputs:[],
+    tests:[{inputs:[],lines:['1','4','9']}],
+    require:[{re:/\bdef\s+square\s*\(/},{re:/\breturn\b/},{re:/\bfor\b/}]
+  }
+];
+const TOTAL=EXERCISES.length;
+const POINTS_PER=10;
+
+/* =================================================================
+   الحالة العامة
+   ================================================================= */
+const S={
+  first:'', last:'', idx:0, helpers:6,
+  answers:Array(TOTAL).fill(''),
+  status:Array(TOTAL).fill('unsolved'),
+  startTime:0, examActive:false, ending:false, softWarned:false, busy:false
+};
+const FORMSPREE='https://formspree.io/f/mbdvdqpe';
+
+/* =================================================================
+   أدوات مساعدة
+   ================================================================= */
+const $=id=>document.getElementById(id);
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');}
+function outLines(s){return s.replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(x=>x.length);}
+function escapeHtml(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+/* خلفية النجوم */
+(function(){const c=$('stars');for(let i=0;i<90;i++){const s=document.createElement('div');s.className='star';const sz=Math.random()*2+1;s.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%`;s.style.setProperty('--d',(Math.random()*3+2)+'s');s.style.setProperty('--delay',Math.random()*3+'s');c.appendChild(s);} })();
+
+/* انفجار النجوم */
+function sparkBurst(){const E=['⭐','✨','🌟','💫','🎉','🪄'];for(let i=0;i<26;i++){const s=document.createElement('div');s.className='spark';s.textContent=E[Math.floor(Math.random()*E.length)];s.style.left=Math.random()*100+'vw';s.style.animationDelay=Math.random()*0.4+'s';s.style.fontSize=(Math.random()*1.4+1)+'rem';document.body.appendChild(s);setTimeout(()=>s.remove(),1800);}}
+
+/* =================================================================
+   بدء الاختبار
+   ================================================================= */
+$('startBtn').addEventListener('click',async()=>{
+  const f=$('firstName').value.trim(), l=$('lastName').value.trim();
+  if(f.length<2||l.length<2){
+    alert('✋ من فضلك اكتب اسمك ولقبك أولا حتى نتمكن من إرسال نتيجتك للأستاذة!');
+    return;
+  }
+  S.first=f; S.last=l;
+  $('studentName').textContent=f+' '+l;
+  // طلب ملء الشاشة (من نقرة المستخدم)
+  try{ await (document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen()); }catch(e){}
+  S.examActive=true; S.startTime=Date.now();
+  buildProgress(); renderHearts(); showScreen('examScreen'); renderQuestion();
+});
+
+/* =================================================================
+   شريط التقدّم والمساعدات
+   ================================================================= */
+function buildProgress(){
+  const p=$('progress'); p.innerHTML='';
+  for(let i=0;i<TOTAL;i++){const d=document.createElement('div');d.className='pdot';d.id='pdot'+i;p.appendChild(d);}
+  updateProgress();
+}
+function updateProgress(){
+  for(let i=0;i<TOTAL;i++){
+    const d=$('pdot'+i); if(!d)continue;
+    d.className='pdot'+(i===S.idx?' cur':'')+(S.status[i]==='solved'?' done':'')+(S.status[i]==='failed'?' fail':'');
+  }
+}
+function renderHearts(){
+  $('helpersNum').textContent=S.helpers;
+  let h='';for(let i=0;i<6;i++){h+=`<span class="hheart${i>=S.helpers?' used':''}">💡</span>`;}
+  $('heartRow').innerHTML=h;
+}
+
+/* =================================================================
+   عرض السؤال
+   ================================================================= */
+function renderQuestion(){
+  const ex=EXERCISES[S.idx];
+  const last=S.idx===TOTAL-1;
+  const inputNote=ex.inputs&&ex.inputs.length
+    ? `<div class="ftip">🧪 عند الضغط على «شغّل» سيُجرّب الكود بمُدخل تجريبي: <b dir="ltr">${escapeHtml(ex.inputs.join(' , '))}</b></div>` : '';
+  $('qCard').innerHTML=`
+    <div class="q-head">
+      <div class="q-emoji">${ex.emoji}</div>
+      <div class="q-meta"><span class="q-lesson">${ex.lesson}</span><h2>${ex.title}</h2></div>
+      <div class="q-num">السؤال ${S.idx+1} من ${TOTAL}</div>
+    </div>
+    <div class="q-desc">${ex.desc}</div>
+    <div class="form-toggle" id="formToggle">📐 أرني شكل الأمر (مثال مختلف)</div>
+    <div class="form-box" id="formBox">
+      <pre>${escapeHtml(ex.form)}</pre>
+      <div class="ftip">👆 هذا مجرّد <b>مثال على الشكل</b> بقصة مختلفة، وليس الحل. اكتب حلّك أنت!</div>
+    </div>
+    <div class="editor-label"><span>✍️ اكتب كودك هنا (Python)</span><span style="opacity:.5">Tab = مسافة بادئة</span></div>
+    <textarea class="code-input" id="codeInput" spellcheck="false" placeholder="# اكتب كود بايثون هنا...">${escapeHtml(S.answers[S.idx])}</textarea>
+    ${inputNote}
+    <div class="btn-row">
+      <button class="btn btn-run" id="runBtn">▶️ شغّل</button>
+      <button class="btn btn-submit" id="submitBtn">✅ أرسل الإجابة</button>
+      <button class="btn btn-help" id="helpBtn">💡 مساعدة نحوية</button>
+      ${S.idx>0?'<button class="btn btn-nav" id="prevBtn">◀ السابق</button>':''}
+      ${last
+        ? '<button class="btn btn-finish" id="finishBtn">🏁 إنهاء الاختبار</button>'
+        : '<button class="btn btn-nav" id="nextBtn">التالي ▶</button>'}
+    </div>
+    <div class="console" id="console"></div>
+    <div class="feedback" id="feedback"></div>
+  `;
+  // ربط الأحداث
+  const ta=$('codeInput');
+  ta.addEventListener('input',()=>{S.answers[S.idx]=ta.value;});
+  ta.addEventListener('keydown',handleEditorKeys);
+  $('formToggle').addEventListener('click',()=>$('formBox').classList.toggle('show'));
+  $('runBtn').addEventListener('click',onRun);
+  $('submitBtn').addEventListener('click',onSubmit);
+  $('helpBtn').addEventListener('click',onHelp);
+  if($('prevBtn'))$('prevBtn').addEventListener('click',()=>goTo(S.idx-1));
+  if($('nextBtn'))$('nextBtn').addEventListener('click',()=>goTo(S.idx+1));
+  if($('finishBtn'))$('finishBtn').addEventListener('click',finishExam);
+  updateHelpBtn();
+  // استعادة حالة سؤال محلول
+  if(S.status[S.idx]==='solved'){
+    const fb=$('feedback'); fb.className='feedback show good';
+    fb.innerHTML='🌟 لقد حللت هذه المهمة بنجاح! يمكنك تعديلها أو الانتقال للتالية.';
+  }
+  updateProgress();
+}
+function updateHelpBtn(){
+  const b=$('helpBtn'); if(!b)return;
+  if(S.helpers<=0){b.disabled=true;b.textContent='💡 لا مساعدات (0)';}
+  else{b.textContent=`💡 مساعدة نحوية (${S.helpers})`;}
+}
+function goTo(i){
+  if(i<0||i>=TOTAL||S.busy)return;
+  S.idx=i; renderQuestion();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* محرّر: Tab = 4 مسافات، Enter يحافظ على الإزاحة */
+function handleEditorKeys(e){
+  const ta=e.target;
+  if(e.key==='Tab'){
+    e.preventDefault();
+    const s=ta.selectionStart, en=ta.selectionEnd;
+    ta.value=ta.value.slice(0,s)+'    '+ta.value.slice(en);
+    ta.selectionStart=ta.selectionEnd=s+4;
+    S.answers[S.idx]=ta.value;
+  } else if(e.key==='Enter'){
+    e.preventDefault();
+    const s=ta.selectionStart;
+    const before=ta.value.slice(0,s);
+    const lineStart=before.lastIndexOf('\n')+1;
+    const curLine=before.slice(lineStart);
+    let indent=(curLine.match(/^[ \t]*/)||[''])[0];
+    if(/:\s*$/.test(curLine.trim()))indent+='    ';
+    const ins='\n'+indent;
+    ta.value=ta.value.slice(0,s)+ins+ta.value.slice(ta.selectionEnd);
+    ta.selectionStart=ta.selectionEnd=s+ins.length;
+    S.answers[S.idx]=ta.value;
+  }
+}
+
+/* =================================================================
+   تشغيل الكود (معاينة)
+   ================================================================= */
+async function onRun(){
+  if(S.busy)return;
+  const code=$('codeInput').value;
+  const con=$('console');
+  if(!code.trim()){ showConsole('✍️ اكتب بعض الكود أولا ثم اضغط شغّل.',true); return; }
+  S.busy=true; $('runBtn').textContent='⏳ يشتغل...';
+  const ex=EXERCISES[S.idx];
+  const r=await runPython(code, ex.inputs);
+  S.busy=false; $('runBtn').textContent='▶️ شغّل';
+  if(r.ok){
+    showConsole(r.output.trim().length?r.output:'(لا يوجد إخراج... هل نسيت print؟)',false);
+  } else {
+    showConsole((r.output?r.output+'\n':'')+'⛔ '+friendlyError(r.error),true);
+  }
+}
+function showConsole(text,isErr){
+  const con=$('console');
+  con.className='console show'+(isErr?' err':'');
+  con.innerHTML='<span class="c-head">🖨️ نتيجة التشغيل:</span>'+escapeHtml(text);
+}
+
+/* =================================================================
+   إرسال الإجابة (تصحيح)
+   ================================================================= */
+async function onSubmit(){
+  if(S.busy)return;
+  const code=$('codeInput').value;
+  const fb=$('feedback');
+  if(!code.trim()){ feedback('bad','✋ المحرّر فارغ! اكتب حلّك أولا.'); return; }
+  S.busy=true; $('submitBtn').textContent='⏳ نصحّح...';
+  const res=await grade(EXERCISES[S.idx], code);
+  S.busy=false; $('submitBtn').textContent='✅ أرسل الإجابة';
+
+  if(res.pass){
+    S.status[S.idx]='solved';
+    feedback('good','🎉 إجابة صحيحة يا بطل! +'+POINTS_PER+' نقاط. أحسنت! '+(S.idx<TOTAL-1?'انتقل إلى المهمة التالية ▶':'اضغط «إنهاء الاختبار» 🏁'));
+    sparkBurst();
+  } else {
+    if(S.status[S.idx]!=='solved')S.status[S.idx]='failed';
+    feedback('bad', res.msg);
+  }
+  updateProgress();
+}
+function feedback(type,msg){
+  const fb=$('feedback');
+  fb.className='feedback show '+type;
+  fb.innerHTML=(type==='good'?'🌟 ':type==='hint'?'💡 ':'🤔 ')+msg;
+}
+
+/* منطق التصحيح: تشغيل الكود ومقارنة الناتج */
+async function grade(ex, code){
+  // تحقّق من استعمال المطلوب (دون كشف التفاصيل)
+  for(const rq of ex.require){
+    if(!rq.re.test(code))
+      return {pass:false,msg:'يبدو أنك لم تستعمل كل ما هو مطلوب في التمرين. اقرأ التعليمات جيدا، وإن احتجت اضغط «💡 مساعدة نحوية».'};
+  }
+  for(const t of ex.tests){
+    const full=code+(ex.appendForTest||'');
+    const r=await runPython(full, t.inputs);
+    if(!r.ok)
+      return {pass:false,msg:'يوجد خطأ في الكود يمنعه من العمل. اضغط «▶️ شغّل» لرؤية الخطأ، أو استعمل «💡 مساعدة نحوية».'};
+    if(t.lines){
+      const got=outLines(r.output);
+      if(got.length!==t.lines.length||!t.lines.every((v,i)=>got[i]===String(v)))
+        return {pass:false,msg:'الناتج لا يطابق المطلوب تماما. راجع ما يجب أن يُطبع وترتيبه.'};
+    }
+    if(t.contains){
+      const o=r.output;
+      for(const c of t.contains){
+        if(!o.includes(String(c)))
+          return {pass:false,msg:'الناتج غير صحيح بعد. تأكّد أن برنامجك يعطي النتيجة الصحيحة لكل الحالات.'};
+      }
+    }
+  }
+  return {pass:true};
+}
+
+/* =================================================================
+   المساعدة النحوية (٦ مرات فقط)
+   ================================================================= */
+function onHelp(){
+  if(S.helpers<=0){ feedback('hint','لقد استعملت كل مساعداتك النحوية الـ٦. اعتمد على نفسك الآن، أنت تقدر! 💪'); return; }
+  const code=$('codeInput').value;
+  if(!code.trim()){ feedback('hint','اكتب بعض الكود أولا، ثم اطلب المساعدة النحوية لأساعدك في تصحيح الشكل.'); return; }
+  const hint=analyzeSyntax(code);
+  S.helpers--; renderHearts(); updateHelpBtn();
+  feedback('hint', hint+`<br><small style="opacity:.7;font-weight:600">المساعدات المتبقية: ${S.helpers}</small>`);
+}
+
+function analyzeSyntax(code){
+  const rawLines=code.replace(/\r/g,'').split('\n');
+  // 1) print بحرف كبير
+  if(/\b(Print|PRINT)\s*\(/.test(code))
+    return 'في بايثون نكتب <code dir="ltr">print</code> بأحرف صغيرة بالكامل. لاحظتُ حرفا كبيرا عندك!';
+  // 2) print بدون أقواس
+  for(const l of rawLines){const t=l.trim();if(/^print\s+["']/.test(t)||/^print\s+[^()\s]/.test(t))return 'بعد <code dir="ltr">print</code> يجب أن تضع قوسين مباشرة هكذا: <code dir="ltr">print("...")</code>. يبدو أنك نسيت الأقواس.';}
+  // 3) النقطتان : بعد if/for/while/def/else/elif
+  for(const l of rawLines){
+    const t=l.trim(); if(!t)continue;
+    const kw=t.match(/^(if|elif|else|for|while|def)\b/);
+    if(kw && !t.endsWith(':')){
+      return `نسيتَ النقطتين <code>:</code> في نهاية السطر الذي يبدأ بـ <code dir="ltr">${kw[1]}</code>. كل جملة <code dir="ltr">${kw[1]}</code> تنتهي بـ <code>:</code> 👍`;
+    }
+  }
+  // 4) الإزاحة (المسافة البادئة) بعد :
+  for(let i=0;i<rawLines.length;i++){
+    if(/:\s*$/.test(rawLines[i].trim())){
+      // ابحث عن أول سطر غير فارغ بعده
+      let j=i+1; while(j<rawLines.length && !rawLines[j].trim())j++;
+      if(j<rawLines.length && !/^[ \t]/.test(rawLines[j])){
+        return 'بعد سطر ينتهي بـ <code>:</code> يجب أن يكون السطر التالي <b>مُزاحا للداخل</b> (اترك مسافة في البداية ـ نحو ٤ مسافات). هنا نسيتَ المسافة البادئة 👈';
+      }
+    }
+  }
+  // 5) علامات تنصيص ناقصة
+  for(const l of rawLines){
+    const dq=(l.match(/"/g)||[]).length, sq=(l.match(/'/g)||[]).length;
+    if(dq%2!==0||sq%2!==0)
+      return 'يبدو أنك نسيتَ علامة تنصيص <code>"</code> في أحد الأسطر. علامات التنصيص تأتي دائما كزوج (واحدة في البداية وواحدة في النهاية).';
+  }
+  // 6) أقواس غير متوازنة
+  const op=(code.match(/\(/g)||[]).length, cl=(code.match(/\)/g)||[]).length;
+  if(op!==cl) return `عدد الأقواس غير متساوٍ: عندك ${op} قوس فتح و ${cl} قوس إغلاق. تأكّد أن كل <code>(</code> يقابله <code>)</code>.`;
+  // 7) = بدل == في الشرط
+  for(const l of rawLines){
+    if(/^(if|elif|while)\b/.test(l.trim()) && /[^<>=!]=[^=]/.test(l))
+      return 'للمقارنة نستعمل <code>==</code> (علامتان)، أمّا <code>=</code> (علامة واحدة) فهي لإعطاء قيمة لمتغيّر فقط.';
+  }
+  // 8) لا يوجد خطأ نحوي واضح
+  return 'الكود سليم من ناحية القواعد النحوية ✅ المشكلة في <b>المنطق</b>: راجع المطلوب من التمرين بدقّة، وجرّب «▶️ شغّل» لترى الناتج.';
+}
+
+function friendlyError(err){
+  if(!err)return 'حدث خطأ غير معروف.';
+  if(/SyntaxError/i.test(err))return 'خطأ في الصياغة (Syntax): تحقّق من النقطتين والأقواس والمسافات. ('+err+')';
+  if(/IndentationError|bad indent/i.test(err))return 'خطأ في الإزاحة: تأكّد من المسافات البادئة بعد النقطتين. ('+err+')';
+  if(/NameError/i.test(err))return 'استعملتَ اسم متغيّر غير معرّف. ('+err+')';
+  if(/TimeLimit|timed out|execution/i.test(err))return 'الكود استغرق وقتا طويلا: ربما حلقة لا تتوقف (انتبه لتحديث المتغيّر داخل while).';
+  return err;
+}
+
+/* =================================================================
+   إنهاء الاختبار وإرسال النتيجة
+   ================================================================= */
+async function finishExam(){
+  const solved=S.status.filter(s=>s==='solved').length;
+  const unsolvedCount=S.status.filter(s=>s!=='solved').length;
+  if(unsolvedCount>0){
+    if(!confirm(`لديك ${unsolvedCount} مهمة لم تُحلّ بعد. هل أنت متأكد أنك تريد إنهاء الاختبار وإرسال نتيجتك؟`))return;
+  }
+  S.examActive=false; // لمنع اعتبار الخروج من ملء الشاشة غشّا
+  const score=solved*POINTS_PER;
+  const pct=Math.round(score/(TOTAL*POINTS_PER)*100);
+  const duration=Math.round((Date.now()-S.startTime)/1000);
+  const mm=Math.floor(duration/60), ss=duration%60;
+
+  showResult(score,pct,solved,`${mm} دقيقة و ${ss} ثانية`);
+  try{ if(document.fullscreenElement) await document.exitFullscreen(); }catch(e){}
+
+  // إرسال إلى الأستاذة عبر Formspree
+  const detail=EXERCISES.map((e,i)=>`${i+1}.${e.title}: ${S.status[i]==='solved'?'✅':'❌'}`).join('  |  ');
+  sendForm({
+    _subject:`✅ نتيجة اختبار: ${S.first} ${S.last} (${score}/100)`,
+    'النوع':'نتيجة اختبار',
+    'الاسم':S.first,
+    'اللقب':S.last,
+    'النتيجة':`${score} / ${TOTAL*POINTS_PER}`,
+    'النسبة':pct+'%',
+    'المهمات_المحلولة':`${solved} من ${TOTAL}`,
+    'المدة':`${mm}:${String(ss).padStart(2,'0')}`,
+    'المساعدات_المستعملة':`${6-S.helpers} من 6`,
+    'التفاصيل':detail,
+    'الوقت':new Date().toLocaleString('ar-DZ')+' ('+new Date().toISOString()+')'
+  }).then(ok=>{
+    $('sentNote').textContent = ok?'✅ تم إرسال نتيجتك إلى الأستاذة بنجاح!':'⚠️ تعذّر إرسال النتيجة (تحقّق من الإنترنت). أبلغ الأستاذة بنتيجتك.';
+    $('sentNote').style.color = ok?'#9fe6b0':'#ffd27a';
+  });
+}
+
+function showResult(score,pct,solved,durTxt){
+  showScreen('resultScreen');
+  $('ringScore').textContent=`${score} من ${TOTAL*POINTS_PER}`;
+  // حلقة النسبة
+  const C=2*Math.PI*86;
+  const fg=$('ringFg'); fg.setAttribute('stroke-dasharray',C.toFixed(1));
+  let cur=0; const target=pct;
+  const tick=setInterval(()=>{
+    cur++; if(cur>=target)cur=target;
+    $('ringPct').textContent=cur+'%';
+    fg.setAttribute('stroke-dashoffset', (C*(1-cur/100)).toFixed(1));
+    if(cur>=target)clearInterval(tick);
+  },18);
+  // التقدير والرسالة
+  let grade,msg;
+  if(pct>=90){grade='🥇 ممتاز ساحر!';msg='أداء خرافي! أنت مبرمج صغير حقيقي. واصل تألّقك ✨';}
+  else if(pct>=70){grade='🥈 جيد جدا!';msg='عمل رائع! أنت على الطريق الصحيح، القليل من المراجعة وستصبح بطلا 💪';}
+  else if(pct>=50){grade='🥉 جيد';msg='بداية طيبة! راجع الدروس التي أخطأت فيها وستتحسّن بسرعة 🌱';}
+  else{grade='🌱 تحتاج مراجعة';msg='لا بأس أبدا! كل مبرمج عظيم بدأ من هنا. راجع الدروس وحاول مرة أخرى، أنت تقدر! 💙';}
+  $('resultGrade').textContent=grade;
+  $('resultMsg').textContent=msg+'  ⏱️ مدّتك: '+durTxt;
+  // تفصيل المهمات
+  let qb='';for(let i=0;i<TOTAL;i++){qb+=`<span class="${S.status[i]==='solved'?'ok':'no'}">${i+1}</span>`;}
+  $('qbreak').innerHTML=qb;
+}
+
+/* =================================================================
+   مكافحة الغش
+   ================================================================= */
+function endCheat(reason){
+  if(S.ending)return; S.ending=true; S.examActive=false;
+  $('warnOverlay').classList.remove('show');
+  $('cheatReason').textContent='السبب: '+reason;
+  showScreen('cheatScreen');
+  try{ if(document.fullscreenElement) document.exitFullscreen(); }catch(e){}
+  // إعلام الأستاذة
+  const solved=S.status.filter(s=>s==='solved').length;
+  sendForm({
+    _subject:`🚨 محاولة غش: ${S.first} ${S.last}`,
+    'النوع':'⚠️ محاولة غش',
+    'الاسم':S.first,
+    'اللقب':S.last,
+    'السبب':reason,
+    'المهمة_الحالية':`${S.idx+1} من ${TOTAL}`,
+    'المهمات_المحلولة_قبل_التوقف':`${solved}`,
+    'الوقت':new Date().toLocaleString('ar-DZ')+' ('+new Date().toISOString()+')'
+  }).then(ok=>{ $('cheatSent').textContent= ok?'📨 تم إعلام الأستاذة بهذه المحاولة.':'⚠️ تعذّر الإرسال، لكن سُجّلت المحاولة.'; });
+}
+
+// مخالفة ليّنة: تحذير أول ثم إنهاء (للخروج من ملء الشاشة / تبديل النافذة)
+function softViolation(reason){
+  if(S.ending||!S.examActive)return;
+  if(!S.softWarned){
+    S.softWarned=true;
+    $('warnOverlay').classList.add('show');
+  } else {
+    endCheat(reason);
+  }
+}
+
+// الخروج من ملء الشاشة
+document.addEventListener('fullscreenchange',()=>{
+  if(!S.examActive)return;
+  if(!document.fullscreenElement){ softViolation('الخروج من وضع ملء الشاشة'); }
+  else { $('warnOverlay').classList.remove('show'); }
+});
+$('backFsBtn').addEventListener('click',async()=>{
+  try{ await document.documentElement.requestFullscreen(); }catch(e){}
+  $('warnOverlay').classList.remove('show');
+});
+
+// تبديل التبويب / إخفاء النافذة
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden && S.examActive){ softViolation('مغادرة نافذة الاختبار أو فتح تبويب آخر'); }
+});
+
+// النسخ والقصّ (خارج محرّر الكود) = غش
+['copy','cut'].forEach(ev=>document.addEventListener(ev,(e)=>{
+  if(!S.examActive)return;
+  if(document.activeElement && document.activeElement.classList.contains('code-input'))return; // مسموح داخل المحرّر
+  e.preventDefault(); endCheat('محاولة نسخ نص الاختبار');
+}));
+
+// منع قائمة الزر الأيمن
+document.addEventListener('contextmenu',(e)=>{ if(S.examActive)e.preventDefault(); });
+
+// لقطة الشاشة والطباعة واختصارات الالتقاط
+window.addEventListener('keyup',(e)=>{ if(S.examActive && e.key==='PrintScreen'){ endCheat('محاولة التقاط صورة للشاشة (Print Screen)'); } });
+window.addEventListener('keydown',(e)=>{
+  if(!S.examActive)return;
+  const k=(e.key||'').toLowerCase();
+  if(e.ctrlKey && k==='p'){ e.preventDefault(); endCheat('محاولة طباعة الصفحة (Ctrl+P)'); }
+  if((e.metaKey||e.ctrlKey) && e.shiftKey && k==='s'){ e.preventDefault(); endCheat('محاولة التقاط صورة للشاشة'); }
+  if(e.key==='PrintScreen'){ endCheat('محاولة التقاط صورة للشاشة (Print Screen)'); }
+});
+
+/* =================================================================
+   إرسال Formspree
+   ================================================================= */
+async function sendForm(fields){
+  try{
+    const fd=new FormData();
+    Object.entries(fields).forEach(([k,v])=>fd.append(k,v));
+    const res=await fetch(FORMSPREE,{method:'POST',body:fd,headers:{'Accept':'application/json'}});
+    return res.ok;
+  }catch(e){ return false; }
+}
+</script>
+</body>
+</html>
